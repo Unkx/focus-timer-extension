@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus Timer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a35;
+      --accent-work: #e8ff47;
+      --accent-break: #47ffb8;
+      --accent-idle: #7b7fff;
+      --text: #f0f0f5;
+      --text-dim: #6b6b80;
+      --text-muted: #3a3a4a;
+      --danger: #ff4757;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 360px;
+      min-height: 480px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-idle);
+      transition: background 0.5s;
+    }
+
+    .logo-dot.work { background: var(--accent-work); animation: pulse 2s infinite; }
+    .logo-dot.break { background: var(--accent-break); animation: pulse 2s infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+      50% { opacity: 0.7; box-shadow: 0 0 8px 2px currentColor; }
+    }
+
+    .logo-text {
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      color: var(--text-dim);
+      text-transform: uppercase;
+    }
+
+    .settings-btn {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s;
+      display: flex;
+      align-items: center;
+    }
+
+    .settings-btn:hover {
+      color: var(--text);
+      background: var(--surface2);
+    }
+
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      transition: all 0.3s;
+    }
+
+    .phase-badge.work { color: var(--accent-work); border-color: rgba(232,255,71,0.3); background: rgba(232,255,71,0.05); }
+    .phase-badge.break { color: var(--accent-break); border-color: rgba(71,255,184,0.3); background: rgba(71,255,184,0.05); }
+
+    .timer-wrap {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .timer-ring {
+      position: relative;
+      width: 180px;
+      height: 180px;
+      margin-bottom: 0;
+    }
+
+    .timer-ring svg {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .ring-bg {
+      fill: none;
+      stroke: var(--surface2);
+      stroke-width: 6;
+    }
+
+    .ring-progress {
+      fill: none;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 502;
+      stroke-dashoffset: 502;
+      transition: stroke-dashoffset 1s linear, stroke 0.5s;
+    }
+
+    .ring-progress.work { stroke: var(--accent-work); }
+    .ring-progress.break { stroke: var(--accent-break); }
+    .ring-progress.idle { stroke: var(--accent-idle); }
+
+    .timer-center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .timer-display {
+      font-family: 'Space Mono', monospace;
+      font-size: 38px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+
+    .timer-sub {
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent-work);
+      color: #0d0d0f;
+    }
+    .btn-primary.break { background: var(--accent-break); }
+    .btn-primary:hover { filter: brightness(1.1); }
+
+    .btn-secondary {
+      background: var(--surface2);
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { color: var(--text); background: var(--border); }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .stat-value.work { color: var(--accent-work); }
+    .stat-value.break { color: var(--accent-break); }
+
+    .settings-panel {
+      display: none;
+    }
+
+    .settings-panel.open {
+      display: block;
+    }
+
+    .settings-section {
+      margin-bottom: 16px;
+    }
+
+    .settings-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+
+    .time-inputs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .input-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      transition: border-color 0.2s;
+    }
+
+    .input-group:focus-within {
+      border-color: var(--accent-idle);
+    }
+
+    .input-sub-label {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .time-input {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: 'Space Mono', monospace;
+      font-size: 20px;
+      font-weight: 700;
+      width: 100%;
+      outline: none;
+    }
+
+    .time-input::placeholder { color: var(--text-muted); }
+
+    .site-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 8px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .site-list::-webkit-scrollbar { width: 4px; }
+    .site-list::-webkit-scrollbar-track { background: transparent; }
+    .site-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .site-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .site-item-text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .site-remove {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 4px;
+      transition: color 0.2s;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    .site-remove:hover { color: var(--danger); }
+
+    .add-site-row {
+      display: flex;
+      gap: 6px;
+    }
+
+    .site-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .site-input::placeholder { color: var(--text-muted); }
+    .site-input:focus { border-color: var(--accent-idle); }
+
+    .add-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--text-dim);
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      line-height: 1;
+    }
+
+    .add-btn:hover { color: var(--text); background: var(--border); }
+
+    .save-btn {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent-idle);
+      color: #0d0d0f;
+      border: none;
+      border-radius: 10px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      letter-spacing: 0.02em;
+      margin-top: 4px;
+    }
+
+    .save-btn:hover { filter: brightness(1.1); }
+    .save-btn:active { transform: scale(0.98); }
+
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    .blocked-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: rgba(255,71,87,0.08);
+      border: 1px solid rgba(255,71,87,0.2);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      font-size: 11px;
+      color: #ff8090;
+    }
+
+    .blocked-info.hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">
+        <div class="logo-dot" id="logoDot"></div>
+        <span class="logo-text">Focus Timer</span>
+      </div>
+      <button class="settings-btn" id="settingsBtn" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <div id="mainView">
+      <div style="display:flex; justify-content:center; margin-bottom:12px">
+        <div class="phase-badge" id="phaseBadge">Ready</div>
+      </div>
+
+      <div class="timer-wrap">
+        <div class="timer-ring">
+          <svg viewBox="0 0 180 180">
+            <circle class="ring-bg" cx="90" cy="90" r="80"/>
+            <circle class="ring-progress idle" id="ringProgress" cx="90" cy="90" r="80"/>
+          </svg>
+          <div class="timer-center">
+            <div class="timer-display" id="timerDisplay">25:00</div>
+            <div class="timer-sub" id="timerSub">Focus</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="btn btn-primary" id="startStopBtn">Start</button>
+        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-label">Work</div>
+          <div class="stat-value work" id="workStat">25 min</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Break</div>
+          <div class="stat-value break" id="breakStat">5 min</div>
+        </div>
+      </div>
+
+      <div class="blocked-info hidden" id="blockedInfo">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+        <span id="blockedCount">0 sites blocked</span>
+      </div>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-section">
+        <div class="settings-label">Time (minutes)</div>
+        <div class="time-inputs">
+          <div class="input-group">
+            <div class="input-sub-label">💼 Work</div>
+            <input class="time-input" type="number" id="workInput" min="1" max="120" value="25" placeholder="25">
+          </div>
+          <div class="input-group">
+            <div class="input-sub-label">☕ Break</div>
+            <input class="time-input" type="number" id="breakInput" min="1" max="60" value="5" placeholder="5">
+          </div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="settings-section">
+        <div class="settings-label">Blocked sites during work</div>
+        <div class="site-list" id="siteList"></div>
+        <div class="add-site-row">
+          <input class="site-input" type="text" id="siteInput" placeholder="e.g., youtube.com, twitter.com">
+          <button class="add-btn" id="addSiteBtn">+</button>
+        </div>
+      </div>
+
+      <button class="save-btn" id="saveBtn">Save settings</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

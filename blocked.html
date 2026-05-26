@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Site Blocked - Focus Timer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #0d0d0f;
+      color: #f0f0f5;
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(123,127,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(123,127,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridMove 20s linear infinite;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate(0,0); }
+      100% { transform: translate(40px, 40px); }
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(232,255,71,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .card {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 460px;
+      padding: 60px 48px;
+      background: #16161a;
+      border: 1px solid #2a2a35;
+      border-radius: 20px;
+      box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+    }
+
+    .icon-wrap {
+      width: 72px;
+      height: 72px;
+      background: rgba(232,255,71,0.07);
+      border: 1px solid rgba(232,255,71,0.2);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 28px;
+      font-size: 32px;
+    }
+
+    .title {
+      font-family: 'Space Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      color: #f0f0f5;
+      margin-bottom: 12px;
+      letter-spacing: -0.5px;
+    }
+
+    .subtitle {
+      font-size: 15px;
+      color: #6b6b80;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+
+    .accent { color: #e8ff47; }
+
+    .timer-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(232,255,71,0.05);
+      border: 1px solid rgba(232,255,71,0.2);
+      border-radius: 40px;
+      padding: 10px 20px;
+      font-family: 'Space Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: #e8ff47;
+      letter-spacing: -0.5px;
+      margin-bottom: 32px;
+    }
+
+    .timer-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #e8ff47;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .message {
+      font-size: 13px;
+      color: #3a3a4a;
+      line-height: 1.5;
+    }
+
+    .tag {
+      display: inline-block;
+      background: #1e1e24;
+      border: 1px solid #2a2a35;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: #6b6b80;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap">🎯</div>
+    <div class="title">Focus Time!</div>
+    <p class="subtitle">
+      This site is <span class="accent">blocked</span> during your work session.<br>
+      Come back during your break.
+    </p>
+
+    <div class="timer-pill">
+      <div class="timer-dot"></div>
+      <span id="timerText">––:––</span>
+    </div>
+
+    <p class="message">
+      Time remaining until break<br>
+      <span class="tag">Focus Timer • Active</span>
+    </p>
+  </div>
+
+  <script>
+    function updateTimer() {
+      chrome.storage.local.get(['timerState'], (result) => {
+        const s = result.timerState;
+        if (s && s.phase === 'work' && s.isRunning && s.startTime) {
+          const elapsed = Math.floor((Date.now() - s.startTime) / 1000);
+          const left = Math.max(0, s.totalTime - elapsed);
+          const m = Math.floor(left / 60).toString().padStart(2, '0');
+          const sec = (left % 60).toString().padStart(2, '0');
+          document.getElementById('timerText').textContent = `${m}:${sec}`;
+        } else if (s && s.timeLeft !== undefined) {
+          const left = s.timeLeft;
+          const m = Math.floor(left / 60).toString().padStart(2, '0');
+          const sec = (left % 60).toString().padStart(2, '0');
+          document.getElementById('timerText').textContent = `${m}:${sec}`;
+        }
+      });
+    }
+    updateTimer();
+    setInterval(updateTimer, 1000);
+  </script>
+</body>
+</html>
